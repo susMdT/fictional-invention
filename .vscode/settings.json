@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "win32.h": "c",
+        "stdio.h": "c",
+        "windows.h": "c"
+    }
+}
