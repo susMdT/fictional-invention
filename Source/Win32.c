@@ -4,7 +4,7 @@
 #include <winternl.h>
 
 // NOTE: The Module hash needs to be a hash from a wide string instead of an ansi string.
-SEC( text, B ) PVOID LdrModulePeb( UINT_PTR hModuleHash )
+SEC( text, C ) PVOID LdrModulePeb( UINT_PTR hModuleHash )
 {
     PLDR_DATA_TABLE_ENTRY Module      = ( PLDR_DATA_TABLE_ENTRY ) ( ( PPEB ) PPEB_PTR )->Ldr->InMemoryOrderModuleList.Flink;
     PLDR_DATA_TABLE_ENTRY FirstModule = Module;
@@ -21,7 +21,7 @@ SEC( text, B ) PVOID LdrModulePeb( UINT_PTR hModuleHash )
     return INVALID_HANDLE_VALUE;
 }
 
-SEC( text, B ) PVOID LdrFunction( UINT_PTR Module, UINT_PTR FunctionHash )
+SEC( text, C ) PVOID LdrFunction( UINT_PTR Module, UINT_PTR FunctionHash )
 {
     PIMAGE_NT_HEADERS       NtHeader         = NULL;
     PIMAGE_EXPORT_DIRECTORY ExpDirectory     = NULL;

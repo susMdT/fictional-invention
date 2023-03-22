@@ -10,14 +10,14 @@ CFLAGS			+= -falign-labels=1 -fPIC -Wl,-TScripts/Linker.ld
 CFLAGS			+= -Wl,-s,--no-seh,--enable-stdcall-fixup
 CFLAGS			+= -fno-stack-check -fno-stack-protector -mno-stack-arg-probe
 
-EXEFLAGS                =  -DISEXE -Os -fno-asynchronous-unwind-tables -nostdlib 
+EXEFLAGS                =  -D ISEXE -Os -fno-asynchronous-unwind-tables -nostdlib 
 EXEFLAGS                += -fno-ident -fpack-struct=8 -falign-functions=1
 EXEFLAGS                += -s -ffunction-sections -falign-jumps=1 -w
 EXEFLAGS                += -falign-labels=1 -fPIC
 EXEFLAGS                += -Wl,-s,--no-seh,--enable-stdcall-fixup
 EXEFLAGS				+= -fno-stack-check -fno-stack-protector -mno-stack-arg-probe
 
-DLLFLAGS                =  -DISDLL --entry DllMain -shared -Os -fno-asynchronous-unwind-tables -nostdlib 
+DLLFLAGS                =  -D ISDLL --entry DllMain -shared -Os -fno-asynchronous-unwind-tables -nostdlib 
 DLLFLAGS                += -fno-ident -fpack-struct=8 -falign-functions=1
 DLLFLAGS                += -s -ffunction-sections -falign-jumps=1 -w
 DLLFLAGS                += -falign-labels=1 -fPIC

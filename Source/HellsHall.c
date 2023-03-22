@@ -14,7 +14,7 @@
 
 // Source: https://stackoverflow.com/a/21001712
 
-SEC( text, B ) uint32_t crc32b(const uint8_t* str) {
+SEC( text, C ) uint32_t crc32b(const uint8_t* str) {
 
     uint32_t    byte    = 0x0,
                 mask    = 0x0,
@@ -38,7 +38,7 @@ SEC( text, B ) uint32_t crc32b(const uint8_t* str) {
 
 
 // USED TO CUT TIME
-SEC( text, B ) BOOL InitilizeNtdllConfig(NTDLL *NtdllSt) {
+SEC( text, C ) BOOL InitilizeNtdllConfig(NTDLL *NtdllSt) {
     
     //  CHECK
     if (NtdllSt->pdwArrayOfFunctions != NULL && NtdllSt->pdwArrayOfNames != NULL && NtdllSt->pwArrayOfOrdinals != NULL)
@@ -90,7 +90,7 @@ SEC( text, B ) BOOL InitilizeNtdllConfig(NTDLL *NtdllSt) {
 Fill Up The Global `SysFunc sF` structure;
     `uSysFuncHash` is a hash value of the syscall 
 */
-SEC( text, B ) BOOL InitilizeSysFunc (IN UINT32_T uSysFuncHash, NTDLL *NtdllSt, SysFunc* sF) {
+SEC( text, C ) BOOL InitilizeSysFunc (IN UINT32_T uSysFuncHash, NTDLL *NtdllSt, SysFunc* sF) {
 
     
     if (!uSysFuncHash)
@@ -162,7 +162,7 @@ SEC( text, B ) BOOL InitilizeSysFunc (IN UINT32_T uSysFuncHash, NTDLL *NtdllSt, 
 /*
     copy the data from the global `SysFunc sF` structure to the input `psF`
 */
-SEC( text, B ) VOID getSysFuncStruct(OUT PSysFunc psF, SysFunc* sF) {
+SEC( text, C ) VOID getSysFuncStruct(OUT PSysFunc psF, SysFunc* sF) {
 
     psF->pAddress   = sF->pAddress;
     psF->pInst      = sF->pInst;
