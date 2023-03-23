@@ -68,8 +68,8 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 #endif
 
 #if defined ISPIC
-    ImageBase   = (PBYTE)(Entry - 0x20); // I would use start, but it returns 0 for some reason. So 0x20 below Entry it is.
-    ImageSize   =  (PVOID)( GetRIPEnd  + 0x6 + 0x5) - ImageBase; //GetRIPEnd is 0x6 bytes long, and random 0x5 is at the end of the code for some reason
+    ImageBase   = (PBYTE)((SIZE_T)Entry - 0x20); // I would use start, but it returns 0 for some reason. So 0x20 below Entry it is.
+    ImageSize   =  (PVOID)( (SIZE_T)GetRIPEnd) - ImageBase; //Theres a few bytes at the end that this misses but thats fiiiiiine right?
 #endif
 
     Instance.Win32.printf( "[INFO] ImageBase is 0x%llx\n", ImageBase );

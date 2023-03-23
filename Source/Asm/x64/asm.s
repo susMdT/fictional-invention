@@ -123,5 +123,4 @@ section .text$E
 ; Random function at the end (5 bytes long) to determine the end of the shellcode
 section .text$END
     GetRIPEnd:
-        call    retptr
-    ret
+        ret
