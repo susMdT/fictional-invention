@@ -17,25 +17,26 @@ NTSTATUS NTAPI NtContinue();
 NTSTATUS WINAPI SystemFunction032();
 NTSTATUS NTAPI NtProtectVirtualMemory();
 NTSTATUS NTAPI NtWaitForSingleObject();
+NTSTATUS NTAPI NtSetEvent();
+NTSTATUS NTAPI NtCreateEvent();
+NTSTATUS NTAPI RtlCreateTimerQueue();
+NTSTATUS NTAPI RtlCreateTimer();
+NTSTATUS NTAPI RtlDeleteTimerQueueEx();
 typedef struct {
 
     struct {
         WIN32_FUNC( LoadLibraryA );
-        WIN32_FUNC( CreateEventW );
-        WIN32_FUNC( CreateTimerQueue );
+        WIN32_FUNC( NtCreateEvent );
+        WIN32_FUNC( RtlCreateTimerQueue );
         WIN32_FUNC( RtlSecureZeroMemory );
         WIN32_FUNC( printf );
-        WIN32_FUNC( memcpy );
         WIN32_FUNC( NtContinue );
         WIN32_FUNC( SystemFunction032 );
-        WIN32_FUNC( GetModuleHandleA );
         WIN32_FUNC( GetProcAddress );
         WIN32_FUNC( RtlCaptureContext );
-        WIN32_FUNC( VirtualProtect );
-        WIN32_FUNC( WaitForSingleObject );
-        WIN32_FUNC( CreateTimerQueueTimer );
-        WIN32_FUNC( SetEvent );
-        WIN32_FUNC( DeleteTimerQueue );
+        WIN32_FUNC( RtlCreateTimer );
+        WIN32_FUNC( NtSetEvent );
+        WIN32_FUNC( RtlDeleteTimerQueueEx );
         WIN32_FUNC( NtProtectVirtualMemory );
         WIN32_FUNC( NtWaitForSingleObject );
     } Win32;
