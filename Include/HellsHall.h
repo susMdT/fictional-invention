@@ -48,4 +48,10 @@ VOID getSysFuncStruct(OUT PSysFunc psF, SysFunc* sF);
 extern VOID SetConfig(WORD wSystemCall, PVOID pSyscallInst);
 extern NTSTATUS HellHall();
 
+// Macros
+#define NtAllocateVirtualMemory_CRC32b   0xe0762feb
+#define NtWriteVirtualMemory_CRC32b  0xe4879939
+#define NtCreateThreadEx_CRC32b  0x2073465a
+#define NtProtectVirtualMemory_CRC32b 0x5c2d1a97
+#define NtFreeVirtualMemory_CRC32b 0xe9d6ce5e
 #endif // !HELLHALL_H

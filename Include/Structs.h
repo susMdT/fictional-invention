@@ -12,6 +12,7 @@ typedef struct _MyStruct
 	SysFunc NtProtectVirtualMemory;
 	SysFunc NtCreateThreadEx;
 	SysFunc NtWriteVirtualMemory;
+	SysFunc NtFreeVirtualMemory;
 
 }MyStruct, *PMyStruct;
 

@@ -5,13 +5,18 @@
 #include <Structs.h>
 
 UINT_PTR GetRIP(VOID);
+UINT_PTR GetRIPE(VOID);
 UINT_PTR GetRIPEnd(VOID);
 LPVOID  KaynCaller();
 LPVOID Start();
+VOID Entry( VOID );
+NTSTATUS ProtStub();
 
-NTSTATUS NTAPI NtContinue ( IN PCONTEXT ContextRecord, IN BOOLEAN TestAlert);
-NTSTATUS WINAPI SystemFunction032( PUNICODE_STRING data, PUNICODE_STRING key);
-
+// Definitions don't matter, just need to be declared
+NTSTATUS NTAPI NtContinue();
+NTSTATUS WINAPI SystemFunction032();
+NTSTATUS NTAPI NtProtectVirtualMemory();
+NTSTATUS NTAPI NtWaitForSingleObject();
 typedef struct {
 
     struct {
@@ -31,6 +36,8 @@ typedef struct {
         WIN32_FUNC( CreateTimerQueueTimer );
         WIN32_FUNC( SetEvent );
         WIN32_FUNC( DeleteTimerQueue );
+        WIN32_FUNC( NtProtectVirtualMemory );
+        WIN32_FUNC( NtWaitForSingleObject );
     } Win32;
 
     struct {
@@ -44,3 +51,9 @@ typedef struct {
     } Modules;
 
 } INSTANCE, *PINSTANCE;
+
+typedef struct
+{
+    SIZE_T StackArgs;   // Indicates to the stub how many of the args to iterate through
+    PVOID Args[16];     // up to 16 in size, index 15
+} ProtStubArgs, *PProtStubArgs;
