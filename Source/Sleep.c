@@ -110,7 +110,9 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         SIZE_T StubSize = (SIZE_T)GetRIPE - (SIZE_T)ProtStub;
 
         SetConfig(S.NtAllocateVirtualMemory.wSSN, S.NtAllocateVirtualMemory.pInst);
-        HellHall(NtCurrentProcess(), &CopiedProtStub, 0, &StubSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        NTSTATUS status = HellHall(NtCurrentProcess(), &CopiedProtStub, 0, &StubSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if (status != 0)
+            Instance.Win32.printf("[Warning] Alloc returned 0x%llx\n", status);
 
         StubSize = (int)GetRIPE - (int)ProtStub;                       // Alloc likes to fuck with this so let's set it back to its true value
         CopyMemoryEx( CopiedProtStub, &ProtStub, StubSize);
@@ -120,10 +122,12 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         InitilizeSysFunc(NtProtectVirtualMemory_CRC32b, &NtdllSt, &sF); // I wanted to put this above BUT FUCKING OPTIMIZATION KILLED MY SHIT
         getSysFuncStruct(&S.NtProtectVirtualMemory, &sF);
         SetConfig(S.NtProtectVirtualMemory.wSSN, S.NtProtectVirtualMemory.pInst);
-        HellHall(NtCurrentProcess(), &CopiedProtStub, &StubSize, PAGE_EXECUTE_READ, &temp);
+        status = HellHall(NtCurrentProcess(), &CopiedProtStub, &StubSize, PAGE_EXECUTE_READ, &temp);
+        if (status != 0)
+            Instance.Win32.printf("[Warning] Protect returned 0x%llx\n", status);
 
         StubSize = (int)GetRIPE - (int)ProtStub; 
-        Instance.Win32.printf( "Check stub integrity at 0x%llx\n", CopiedProtStub);
+        Instance.Win32.printf( "[Info] Stub is mapped at 0x%llx\n", CopiedProtStub);
 
         SIZE_T ProtectionRange = (SIZE_T)ImageSize; // Gotta love how size matters :(. 8 byte ptr to int != 8 byte ptr to 8 byte num
         SIZE_T ProtectionRange2 = (SIZE_T)ImageSize; // Declare 2 of these, one for each instance. Since ntprotect will change them up during rop
@@ -195,8 +199,9 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 
         temp = NULL;
         SetConfig(S.NtFreeVirtualMemory.wSSN, S.NtFreeVirtualMemory.pInst);
-        NTSTATUS status = HellHall((HANDLE)-1, &CopiedProtStub, &temp, MEM_RELEASE); // free the stub completely
-        Instance.Win32.printf("Free Status is 0x%llx\n", status);
+        status = HellHall((HANDLE)-1, &CopiedProtStub, &temp, MEM_RELEASE); // free the stub completely
+        if (status != 0)
+            Instance.Win32.printf("[Warning] Free returned 0x%llx\n", status);
     }
 
     Instance.Win32.RtlDeleteTimerQueueEx( hTimerQueue, 0 );
