@@ -80,7 +80,8 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 #endif
 
 #if defined ISPIC
-    ImageBase   = (PBYTE)((SIZE_T)Entry - 0x20); // I would use start, but it returns 0 for some reason. So 0x20 below Entry it is.
+    ImageBase   = (PBYTE)((SIZE_T)Start + 0x1 ); // For some fucking reason if i just do start, it resolves to 0. but +0x1 and then -0x1 works???
+    ImageBase -= 0x1;
     ImageSize   =  (PVOID)( (SIZE_T)GetRIPEnd) - ImageBase; //Theres a few bytes at the end that this misses but thats fiiiiiine right?
 #endif
 
