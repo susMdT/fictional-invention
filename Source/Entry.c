@@ -48,3 +48,4 @@ SEC( text, B ) VOID Entry( VOID )
         Ekko( 1 * 1000 );
     while ( TRUE );
 } 
+

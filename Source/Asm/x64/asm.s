@@ -104,13 +104,13 @@ section .text$D
         jmp arg_loop ; Jump back to loop_start
         loop_end:
 
-        sub rsp, 020h
+        sub rsp, 020h                ; Now the 5th argument/whatever will be at the right offset
 
         mov eax, r10d		         ; paste the SSN into the eax
         mov r10, rcx	             ; normal syscall shit
         call r11		             ; jumping to the syscall gadget. return back to us so i can do some janky "fixes" HAHAHAHA
 
-        add rsp, 028h
+        add rsp, 028h                ; Fixing it so shit doesn't blow up
         ret
     ret
 

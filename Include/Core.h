@@ -22,6 +22,7 @@ NTSTATUS NTAPI NtCreateEvent();
 NTSTATUS NTAPI RtlCreateTimerQueue();
 NTSTATUS NTAPI RtlCreateTimer();
 NTSTATUS NTAPI RtlDeleteTimerQueueEx();
+NTSTATUS NTAPI NtSignalAndWaitForSingleObject();
 typedef struct {
 
     struct {
@@ -39,6 +40,7 @@ typedef struct {
         WIN32_FUNC( RtlDeleteTimerQueueEx );
         WIN32_FUNC( NtProtectVirtualMemory );
         WIN32_FUNC( NtWaitForSingleObject );
+        WIN32_FUNC( NtSignalAndWaitForSingleObject );
     } Win32;
 
     struct {
