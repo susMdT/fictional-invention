@@ -5,7 +5,7 @@ Credit to [C5pider](https://github.com/Cracked5pider), [mrd0x](https://github.co
 I honestly don't know what the fuck I'm cooking. Current things this "project" supports/is capable of  
 * Indirect syscalls via HellsHall. Only did it for the protect call and some other common ones, too lazy for others
 * Producing Shellcode (via ShellcodeTemplate), exes, dlls.  
-* Sleep encryption via Ekko. Only works on Exes and Shellcode. I don't think DLL can sleep encrypt properly cause CFG, just a guess though  
+* Sleep encryption via Ekko. Only works on  Shellcode. 
 * I managed to injected to explorer/locally and it works, but if theres more than one instance of the shellcode is already there, only one of them will cycle.  
 
 Section Organization: Order matters, sorta, so I'm gonna try to document things out here  

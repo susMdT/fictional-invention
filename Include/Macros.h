@@ -20,3 +20,7 @@
 #define HASH_NTDLL          0x70e61753
 #define HASH_MSVCRT         0x2b03e372
 #define HASH_ADVAPI         0x941cbee6
+
+#define NT_SUCCESS(Status) ( (NTSTATUS)(Status) >= 0 )
+#define NtCurrentThread() (  ( HANDLE ) ( LONG_PTR ) -2 )
+#define NtCurrentProcess() ( ( HANDLE ) ( LONG_PTR ) -1 )

@@ -9,6 +9,7 @@ global HellHall
 global SetConfig
 global KaynCaller
 global ProtStub
+global GetRSP
 
 section .text$A
     ; stack alignment + allocating stack space, then calling entrypoint apparently
@@ -58,6 +59,11 @@ section .text$C
     retptr:
         pop	rax
         sub	rax, 5
+    ret
+section .text$C
+    GetRSP:
+        mov rax, [rsp]
+        add rax, 8
     ret
 
 section .text$C

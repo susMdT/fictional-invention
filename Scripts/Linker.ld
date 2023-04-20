@@ -1,3 +1,4 @@
+
 SECTIONS
 {
 	.text :
@@ -10,5 +11,7 @@ SECTIONS
 		*( .rdata* )
 		*( .text$F )
 		*( .text$END )
-	}
+		. += 4096;
+		*( .text$INSTANCE )
+	} = 0x6969
 }

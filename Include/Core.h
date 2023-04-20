@@ -7,6 +7,7 @@
 UINT_PTR GetRIP(VOID);
 UINT_PTR GetRIPE(VOID);
 UINT_PTR GetRIPEnd(VOID);
+UINT_PTR GetRSP(VOID);
 LPVOID  KaynCaller();
 LPVOID Start();
 VOID Entry( VOID );
@@ -23,6 +24,10 @@ NTSTATUS NTAPI RtlCreateTimerQueue();
 NTSTATUS NTAPI RtlCreateTimer();
 NTSTATUS NTAPI RtlDeleteTimerQueueEx();
 NTSTATUS NTAPI NtSignalAndWaitForSingleObject();
+NTSTATUS NTAPI NtSetContextThread();
+NTSTATUS NTAPI NtDuplicateObject();
+NTSTATUS NTAPI NtGetContextThread();
+NTSTATUS NTAPI RtlCopyMappedMemory();
 typedef struct {
 
     struct {
@@ -41,6 +46,10 @@ typedef struct {
         WIN32_FUNC( NtProtectVirtualMemory );
         WIN32_FUNC( NtWaitForSingleObject );
         WIN32_FUNC( NtSignalAndWaitForSingleObject );
+        WIN32_FUNC( NtSetContextThread );
+        WIN32_FUNC( NtDuplicateObject );
+        WIN32_FUNC( NtGetContextThread );
+        WIN32_FUNC( RtlCopyMappedMemory  );
     } Win32;
 
     struct {
@@ -54,6 +63,7 @@ typedef struct {
     } Modules;
 
 } INSTANCE, *PINSTANCE;
+extern INSTANCE InstancePlaceholder;
 
 typedef struct
 {
