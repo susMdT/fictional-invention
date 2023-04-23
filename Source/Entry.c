@@ -80,6 +80,7 @@ SEC( text, B ) VOID Entry( VOID )
     Instance->Win32.NtSetContextThread = LdrFunction (Instance->Modules.Ntdll, 0xffa0bf10);
     Instance->Win32.NtDuplicateObject = LdrFunction (Instance->Modules.Ntdll, 0x4441d859);
     Instance->Win32.NtGetContextThread = LdrFunction (Instance->Modules.Ntdll, 0x6d22f884);
+    Instance->Win32.NtDelayExecution = LdrFunction (Instance->Modules.Ntdll, 0xf5a936aa);
 
     Instance->Win32.SystemFunction032 = LdrFunction (Instance->Modules.Cryptsp, 0xe58c8805);
 

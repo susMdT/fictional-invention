@@ -11,13 +11,12 @@ CFLAGS			+= -Wl,-s,--no-seh,--enable-stdcall-fixup
 CFLAGS			+= -fno-stack-check -fno-stack-protector -mno-stack-arg-probe
 
 EXECUTABLE_X64	= Bin/$(ProjectName).x64.exe
-DLL_X64		= Bin/$(ProjectName).x64.dll
 RAWBINARY_X64	= Bin/$(ProjectName).x64.bin
 
 #EXECUTABLE_X86	= Bin/$(ProjectName).x86.exe
 #RAWBINARY_X86	= Bin/$(ProjectName).x86.bin
 
-all: x64 #x86
+all: x64 
 
 x64: clean
 	@ echo "[*] Compile x64 executable to extract .text from..."

@@ -16,5 +16,5 @@ Section Organization: Order matters, sorta, so I'm gonna try to document things 
 * D    => Protect Stub  
 * E    => GetRIPE; arbitrary function to indicate + calculate size of the Protect stub  
 * $END => GetRIPEnd; arbitrary function to indicate + calculate end of shellcode  
-* . += 4096; => Adding a 4096 byte offset so I can locate the global variable (Instance, so i don't have to define one in every function to load the nt/winapis). Needs to be a seaparate page cuz ntprotect will do whole page and changing our functions to RW will fuck us over
-* *( .text$INSTANCE ) => Global instance to access win/ntapis from.
+* . += 4096; => Adding a 4096 byte offset so I can locate the global variable (Instance, so i don't have to define one in every function to load the nt/winapis). Needs to be a seaparate page cuz ntprotect will do whole page and changing our functions to RW will fuck us over  
+* ( .text$INSTANCE ) => Global instance to access win/ntapis from.  

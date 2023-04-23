@@ -28,6 +28,8 @@ NTSTATUS NTAPI NtSetContextThread();
 NTSTATUS NTAPI NtDuplicateObject();
 NTSTATUS NTAPI NtGetContextThread();
 NTSTATUS NTAPI RtlCopyMappedMemory();
+NTSTATUS NTAPI NtAlertThread();
+NTSTATUS NTAPI NtDelayExecution();
 typedef struct {
 
     struct {
@@ -49,7 +51,9 @@ typedef struct {
         WIN32_FUNC( NtSetContextThread );
         WIN32_FUNC( NtDuplicateObject );
         WIN32_FUNC( NtGetContextThread );
-        WIN32_FUNC( RtlCopyMappedMemory  );
+        WIN32_FUNC( RtlCopyMappedMemory );
+        WIN32_FUNC( NtAlertThread );
+        WIN32_FUNC( NtDelayExecution );
     } Win32;
 
     struct {
